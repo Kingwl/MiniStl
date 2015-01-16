@@ -4,10 +4,11 @@
 #endif
 #ifndef _ALLOCATE_
 #define _ALLOCATE_
-//allocate with std::malloc
-
+#include "type_traits"
+//simple allocator with std::malloc
 class malloc_alloc{
 
+	//the function handler of oom
 	static void* oom_malloc(std::size_t);
 	static void(*malloc_oom_handler)();
 
@@ -25,7 +26,7 @@ public:
 		std::free(p);
 	}
 
-	//set the fucntion_ptr for oom
+	//set the fucntion handler for oom
 	static void(*set_malloc_handler(void(*f)()))()
 	{
 		void(*old)() = malloc_oom_handler;
@@ -53,32 +54,37 @@ void* malloc_alloc::oom_malloc(std::size_t n)
 // allocate with memory pool
 enum : std::size_t
 {
-	Align = 8,
-	MaxSize = 128,
-	ListNum = MaxSize / Align
+	Align = 8,// the size of every block
+	MaxSize = 128, //the maxsize of every block
+	ListNum = MaxSize / Align, //the number of the free_list
 };
 
 class default_alloc{
 
+	//round up n to the number
 	static std::size_t Round_Up(std::size_t size)
 	{
 		return (((size)+Align - 1) & ~(Align - 1));
 	}
 
+	//the union of the memory list
 	union _slot{
 		union _slot * _next;
 		char _data[1];
 	};
 
+	//free_list 
 	static _slot * volatile free_list[ListNum];
 
 	typedef _slot* slot_ptr;
 
+	//convert size to the index of free_list
 	static std::size_t FreeList_Index(std::size_t size)
 	{
 		return (((size)+Align - 1) / Align - 1);
 	}
 
+	//create the memory chunk and return the pointer whitch point to the memory
 	static void* refill(std::size_t n)
 	{
 		int nodjs = 20;
@@ -89,8 +95,10 @@ class default_alloc{
 		slot_ptr cur_slot = nullptr;
 		slot_ptr next_slot = nullptr;
 
+		//the number of memory chunk return 1 chunk 
 		if (nodjs == 1) return chunk;
 
+		//add the memory chunk to the free_list
 		my_free_list = free_list + FreeList_Index(n);
 		result = reinterpret_cast<slot_ptr>(chunk);
 		*my_free_list = next_slot = reinterpret_cast<slot_ptr>(chunk + n);
@@ -126,30 +134,32 @@ class default_alloc{
 			start_free += total_size;
 			return result;
 		}
-
 		else if (size_left > size)
 		{
+			//the size left less than total size and bigger than size, so recalculate the nodes of the chunk
 			nodes = size_left / size;
 			total_size = size * nodes;
 			result = start_free;
 			start_free += total_size;
 			return result;
 		}
-
 		else
 		{
 			std::size_t size_to_get = 2 * total_size + Round_Up(heap_size >> 4);
 
 			if (size_left > 0)
 			{
+				//try to use the left free memory of the memory pool, and add them to free_list
 				slot_ptr volatile *my_free_list = free_list + FreeList_Index(size_left);
 				reinterpret_cast<slot_ptr>(start_free)->_next = *my_free_list;
 				*my_free_list = reinterpret_cast<slot_ptr>(start_free);
 			}
+			
 			start_free = reinterpret_cast<char*>(std::malloc(size_to_get));
 
 			if (start_free == nullptr)
 			{
+				// if oom try to take the memory of free_list to memory pool
 				slot_ptr volatile *my_free_list = nullptr;
 				slot_ptr p = nullptr;
 
@@ -174,6 +184,7 @@ class default_alloc{
 			return chunk_alloc(size, nodes);
 		}
 	}
+
 	static char* start_free;
 	static char* end_free;
 	static std::size_t heap_size;
@@ -244,7 +255,7 @@ public:
 
 	static T* allocate(std::size_t n)
 	{
-		return n == 0 ? reinterpret_cast<T*>(Alloc::allocate(n * sizeof(T))) : 0;
+		return n == 0 ? 0 : reinterpret_cast<T*>(Alloc::allocate(n * sizeof(T)));
 	}
 
 	static void deallocate(void *p)
@@ -257,4 +268,36 @@ public:
 		if(n != 0) alloc::deallocate(p, n * sizeof(T));
 	}
 };
+//construct and the destroy
+template<class T1, class T2>
+inline void construct(T1 *p, const T2 &v)
+{
+	new(p)T1(v);
+}
+
+template<class T>
+inline void destroy(T *ptr)
+{
+	ptr->~T();
+}
+
+template<class Iterator>
+inline void destroy(Iterator first, Iterator last)
+{
+	_destroy(first, last, first);
+}
+
+template<class Iterator, class T>
+inline void _destroy(Iterator first, Iterator last, T*)
+{
+	bool is_destroy = std::has_trivial_destructor<T>::value;
+	if (!is_destroy)
+	{
+		for (; first != last; ++first)
+		{
+			destroy(&*(first));
+		}
+	}
+}
+
 #endif
