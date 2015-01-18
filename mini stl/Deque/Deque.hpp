@@ -253,7 +253,7 @@ public:
 	Deque_base()
 		:start(), finish()
 	{
-
+		init_map(0);
 	}
 
 	Deque_base(std::size_t n)
@@ -387,8 +387,80 @@ public:
 
 	Deque()
 	{
-		
+
 	}
 
+	void reallocate_map(size_type node_to_add, bool add_at_front)
+	{
+		size_type old_size = finish.node - start.node + 1;
+		size_type new_size = old_size + node_to_add;
+
+		map_pointer new_start = nullptr;
+		if (_map_size > new_size * 2)
+		{
+			new_start = _map + (_map_size - new_size) / 2 + (add_at_front ? node_to_add : 0);
+			if (new_start < _map)
+			{
+				std::copy(start.node, finish.node + 1, new_start);
+			}
+			else
+			{
+				std::copy_backward(start.node, finish.node + 1, new_start + old_size);
+			}
+		}
+		else
+		{
+
+		}
+	}
+
+	void reserve_map_at_back(size_type nodes = 1)
+	{
+		if (nodes + 1 > _map_size - (finish.node - _map))
+		{
+			reallocate_map(nodes,false);
+		}
+	}
+
+	void reserve_map_at_front(size_type nodes = 1)
+	{
+		if (nodes < start.node - map)
+		{
+			reallocate_map(nodes, true);
+		}
+	}
+
+	void push_back_aux(const T &x)
+	{
+		value_type x_copy = x;
+		reserve_map_at_back();
+		*(finish.node + 1) = allocate_node();
+		construct(finish.cur, x_copy);
+		finish.set_node(finish.node + 1);
+		finish.cur = finish.first;
+	}
+
+	void push_front_aux(const T &x)
+	{
+
+	}
+
+	void push_back(const T &x)
+	{
+		if (finish.cur != finish.last - 1)
+		{
+			construct(finish.cur, x);
+			++finish.cur;
+		}
+		else
+		{
+			push_back_aux(x);
+		}
+	}
+
+	void push_front(const T &x)
+	{
+
+	}
 };
 #endif
