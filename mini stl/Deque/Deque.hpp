@@ -2,6 +2,7 @@
 #ifdef DEBUG
 #include "iostream"
 #endif
+
 #ifndef _DEQUE_
 #define _DEQUE_
 #include "Allocator.hpp"
@@ -61,7 +62,7 @@ struct deque_iterator
 
 	}
 	deque_iterator(const iterator &x)
-		:cur(x), first(x.first), last(x.last), node(x.node)
+		:cur(x.cur), first(x.first), last(x.last), node(x.node)
 	{
 
 	}
@@ -76,9 +77,9 @@ struct deque_iterator
 		return &(operator*());
 	}
 	
-	difference_type operator- (const iterator &x)
+	difference_type operator- (const iterator &x) const
 	{
-		return difference_type((node - x.node) * buffer_size() + (cur - first) + (x.last - x.cur));
+		return difference_type((node - x.node - 1) * buffer_size() + (cur - first) + (x.last - x.cur));
 	}
 
 	self& operator++()
@@ -120,7 +121,7 @@ struct deque_iterator
 	self& operator+= (difference_type n)
 	{
 		difference_type offset = n + (cur - first);
-		if (offset >= 0 && n < buffer_size())
+		if (offset >= 0 && offset < (difference_type)buffer_size())
 		{
 			cur += n;
 		}
@@ -128,7 +129,7 @@ struct deque_iterator
 		{
 			difference_type node_offset = offset > 0 ? offset / difference_type(buffer_size())
 				: -difference_type((-offset - 1) / buffer_size()) - 1;
-			set_node(node_offset);
+			set_node(node + node_offset);
 			cur = first + (offset - node_offset * buffer_size());
 		}
 		return *this;
@@ -139,19 +140,19 @@ struct deque_iterator
 		return *this += -n;
 	}
 
-	self& operator+ (difference_type n)
+	self operator+ (difference_type n) const
 	{
 		self tmp = *this;
 		return tmp += n;
 	}
 
-	self& operator- (difference_type n)
+	self operator- (difference_type n)const
 	{
 		self tmp = *this;
 		reutrn tmp -= n;
 	}
 
-	reference operator[](difference_type n)
+	reference operator[](difference_type n) const
 	{
 		return *(*this + n);
 	}
@@ -207,6 +208,11 @@ public:
 		:_map(nullptr),_map_size(0)
 	{
 	
+	}
+
+	~Deque_alloc_base()
+	{
+
 	}
 
 protected:
@@ -266,7 +272,6 @@ public:
 	{
 		if (_map != nullptr)
 		{
-			destroy_nodes(start.node, finish.node + 1);
 			deallocate_map(_map, _map_size);
 		}
 	}
@@ -293,7 +298,7 @@ protected:
 		start.set_node(n_start);
 		finish.set_node(n_finish - 1);
 		start.cur = start.first;
-		finish.cur = finish.first + nodes % buff_size();
+		finish.cur = finish.first + n % buff_size();
 	}
 
 	void create_nodes(map_pointer first, map_pointer last)
@@ -358,12 +363,22 @@ public:
 		return start[difference_type(n)];
 	}
 
+	const_reference operator[](size_type n) const
+	{
+		return start[difference_type(n)];
+	}
+
 	size_type size() const
 	{
 		return finish - start;
 	}
 
 	reference front()
+	{
+		return *start;
+	}
+
+	const_reference front() const
 	{
 		return *start;
 	}
@@ -375,12 +390,19 @@ public:
 		return *tmp;
 	}
 
-	size_type max_size()
+	const_reference back() const
+	{
+		iterator tmp = finish;
+		--tmp;
+		return *tmp;
+	}
+
+	size_type max_size() const
 	{
 		return size_type(-1) / sizeof(T);
 	}
 
-	bool empty()
+	bool empty() const
 	{
 		return finish == start;
 	}
@@ -389,6 +411,88 @@ public:
 	{
 
 	}
+
+	~Deque()
+	{
+		clear();
+	}
+
+	void push_back(const T &x)
+	{
+		if (finish.cur != finish.last - 1)
+		{
+			construct(finish.cur, x);
+			++finish.cur;
+		}
+		else
+		{
+			push_back_aux(x);
+		}
+	}
+
+	void push_front(const T &x)
+	{
+		if (start.cur != start.first)
+		{
+			construct(start.cur, x);
+			--start.cur;
+		}
+		else
+		{
+			push_front_aux(x);
+		}
+	}
+
+	void pop_back()
+	{
+		if (finish.cur != finish.first)
+		{
+			--finish.cur;
+			destroy(finish.cur);
+		}
+		else
+		{
+			pop_back_aux();
+		}
+	}
+
+	void pop_front()
+	{
+		if (start.cur != start.last - 1)
+		{
+			destroy(start.cur);
+			++start.cur;
+		}
+		else
+		{
+			pop_front_aux();
+		}
+	}
+
+	void clear()
+	{
+		for (map_pointer node = start.node; node != finish.node; ++node)
+		{
+			destroy(*node, *node + buff_size());
+			deallocate_node(*node);
+
+		}
+
+		if (start.node != finish.node)
+		{
+			destroy(start.cur, start.last);
+			destroy(finish.first, finish.cur);
+			deallocate_node(finish.first);
+		}
+		else
+		{
+			destroy(start.cur, finish.cur);
+		}
+
+		finish = start;
+	}
+
+protected:
 
 	void reallocate_map(size_type node_to_add, bool add_at_front)
 	{
@@ -410,12 +514,25 @@ public:
 		}
 		else
 		{
+			size_type new_map_size = _map_size + max<size_type>(node_to_add, _map_size) + 2;
+			map_pointer new_map = allocate_map(new_map_size);
 
+			new_start = new_map + (new_map_size - new_size) / 2 + (add_at_front ? node_to_add : 0);
+
+			std::copy(start.node, finish.node + 1, new_start);
+			deallocate_map(_map, _map_size);
+
+			_map = new_map;
+			_map_size = new_map_size;
 		}
+
+		start.set_node(new_start);
+		finish.set_node(new_start + old_size - 1);
 	}
 
 	void reserve_map_at_back(size_type nodes = 1)
 	{
+		auto i = _map_size - (finish.node - _map);
 		if (nodes + 1 > _map_size - (finish.node - _map))
 		{
 			reallocate_map(nodes,false);
@@ -434,6 +551,7 @@ public:
 	{
 		value_type x_copy = x;
 		reserve_map_at_back();
+
 		*(finish.node + 1) = allocate_node();
 		construct(finish.cur, x_copy);
 		finish.set_node(finish.node + 1);
@@ -442,25 +560,29 @@ public:
 
 	void push_front_aux(const T &x)
 	{
+		value_type x_copy = x;
+		reserve_map_at_front();
 
+		*(start.node - 1) = allocate_node();
+		start.set_node(start.node - 1);
+		start.cur = start.last - 1;
+		construct(start.cur, x_copy);
 	}
-
-	void push_back(const T &x)
+	
+	void pop_back_aux()
 	{
-		if (finish.cur != finish.last - 1)
-		{
-			construct(finish.cur, x);
-			++finish.cur;
-		}
-		else
-		{
-			push_back_aux(x);
-		}
+		deallocate_node(finish.first);
+		finish.set_node(finish.node - 1);
+		finish.cur = finish.last - 1;
+		destroy(finish.cur);
 	}
 
-	void push_front(const T &x)
+	void pop_front_aux()
 	{
-
+		deallocate_node(start.first);
+		start.set_node(start.node + 1);
+		start.cur = start.first;
 	}
+	
 };
 #endif

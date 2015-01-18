@@ -6,9 +6,31 @@
 #include "Deque.hpp"
 int _tmain(int argc, _TCHAR* argv[])
 {
-	std::cout << (-1) / 4;
-	system("pause");
+	const int siz = 1000;
 	Deque<int> d;
+	for (int i = 0; i < siz; ++i)
+	{
+		d.push_back(i);
+	}
+	for (int i = 0; i < siz; ++i)
+	{
+		if (d[i] != i)
+		{
+			std::cout << "fuck" << i;
+		}
+	}
+	d.clear();
+	std::cout << d.size();
+	d.back();
+	d.begin();
+	d.cbegin();
+	d.cend();
+	d.empty();
+	d.end();
+	d.front();
+	d.clear();
+	//d.clear();
+	system("pause");
 
 	return 0;
 }
