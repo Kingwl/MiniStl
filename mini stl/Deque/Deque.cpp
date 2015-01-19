@@ -7,7 +7,7 @@
 int _tmain(int argc, _TCHAR* argv[])
 {
 	const int siz = 1000;
-	Deque<int> d;
+	Deque<int> d(10,0);
 	for (int i = 0; i < siz; ++i)
 	{
 		d.push_back(i);
@@ -30,6 +30,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	d.front();
 	d.clear();
 	//d.clear();
+
 	system("pause");
 
 	return 0;

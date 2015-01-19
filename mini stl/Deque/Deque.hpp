@@ -252,6 +252,7 @@ class Deque_base : public Deque_alloc_base<T,Alloc>
 public:
 
 	typedef Deque_alloc_base<T, Alloc> _Base;
+	typedef std::size_t size_type;
 	typedef typename _Base::map_pointer map_pointer;
 	typedef deque_iterator<T, T&, T*> iterator;
 	typedef deque_iterator<T, const T&, const T*> const_iterator;
@@ -262,10 +263,15 @@ public:
 		init_map(0);
 	}
 
-	Deque_base(std::size_t n)
+	Deque_base(size_type n)
 		:start(), finish()
 	{
-		init_map(n);
+		fill_init(n);
+	}
+
+	Deque_base(size_type n, const T &x)
+	{
+		fill_init(n, x);
 	}
 
 	~Deque_base()
@@ -278,16 +284,16 @@ public:
 
 protected:
 
-	enum : std::size_t
+	enum : size_type
 	{
 		init_map_size = 8
 	};
 
-	void init_map(std::size_t n)
+	void init_map(size_type n)
 	{
-		std::size_t nodes = n / buff_size() + 1;
+		size_type nodes = n / buff_size() + 1;
 
-		_map_size = max<std::size_t>(init_map_size, nodes + 2);
+		_map_size = max<size_type>(init_map_size, nodes + 2);
 		_map = allocate_map(_map_size);
 
 		map_pointer n_start = _map + (_map_size - nodes) / 2;
@@ -317,6 +323,39 @@ protected:
 		}
 	}
 
+	void fill_init(size_type n, const T &x = T())
+	{
+		create_map_and_nodes(n);
+		for (map_pointer cur = start.node; cur != finish.node; ++cur)
+		{
+			std::fill(*cur, *cur + buff_size(), x);
+		}
+		std::fill(finish.first, finish.cur, x);;
+	}
+
+	void create_map_and_nodes(size_type nodes)
+	{
+		size_type nodes_size = nodes / buff_size() + 1;
+		_map_size = max<size_type>(init_map_size, nodes_size + 2);
+		_map = allocate_map(_map_size);
+
+		map_pointer nstart = _map + (_map_size - nodes_size) / 2;
+		map_pointer nfinish = nstart + nodes_size - 1;
+
+		map_pointer cur = nullptr;
+
+		for (cur = nstart; cur <= nfinish; ++cur)
+		{
+			*cur = allocate_node();
+		}
+
+		start.set_node(nstart);
+		finish.set_node(nfinish);
+		start.cur = start.first;
+		finish.cur = finish.first + nodes % buff_size();
+
+	}
+
 	iterator start;
 	iterator finish;
 };
@@ -331,7 +370,7 @@ public:
 	typedef T& reference;
 	typedef const T& const_reference;
 
-	typedef std::size_t size_type;
+	typedef _Base::size_type size_type;
 	typedef std::ptrdiff_t difference_type;
 
 	typedef typename _Base::map_pointer map_pointer;
@@ -412,10 +451,25 @@ public:
 
 	}
 
+	Deque(size_type n, const T &x)
+		:_Base(n,x)
+	{
+
+	}
+
+	Deque(size_type n)
+		:_Base(n)
+	{
+
+	}
+
+	
+
 	~Deque()
 	{
 		clear();
 	}
+	
 
 	void push_back(const T &x)
 	{
