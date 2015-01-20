@@ -12,13 +12,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	{
 		d.push_back(i);
 	}
-	for (int i = 0; i < siz; ++i)
-	{
-		if (d[i] != i)
-		{
-			std::cout << "fuck" << i;
-		}
-	}
+	d.erase(d.begin());
+	d.erase(d.begin(), d.begin() + 3);
+	d.insert(d.begin() + 2, 1);
 	d.clear();
 	std::cout << d.size();
 	d.back();

@@ -149,7 +149,7 @@ struct deque_iterator
 	self operator- (difference_type n)const
 	{
 		self tmp = *this;
-		reutrn tmp -= n;
+		return tmp -= n;
 	}
 
 	reference operator[](difference_type n) const
@@ -546,7 +546,118 @@ public:
 		finish = start;
 	}
 
+	iterator erase(iterator pos)
+	{
+		if (pos.cur == start.cur)
+		{
+			pop_front();
+			return start;
+		}
+
+		iterator next = pos;
+		++next;
+		difference_type index = pos - start;
+
+		if (size_type(index) < size() / 2)
+		{
+			std::copy_backward(start, pos, next);
+			pop_front();
+		}
+		else
+		{
+			std::copy(next, finish, pos);
+			pop_back();
+		}
+		return start + index;
+	}
+
+	iterator erase(iterator first, iterator last)
+	{
+		if (first == start && last == finish)
+		{
+			clear();
+			return finish;
+		}
+		else
+		{
+			difference_type n = last - first;
+			difference_type elems_before = first - start;
+
+			if (size_type(elems_before) < (size() - n / 2))
+			{
+				std::copy_backward(start, first, last);
+				iterator n_start = start + n;
+				destroy(start, n_start);
+				destroy_nodes(start.node, n_start.node);
+				start = n_start;
+			}
+			else
+			{
+				std::copy(last, finish, first);
+				iterator n_finish = finish - n;
+				destroy(n_finish, finish);
+				destroy_nodes(n_finish.node, finish.node);
+				finish = n_finish;
+			}
+
+			return start + elems_before;
+		}
+	}
+
+	iterator insert(iterator pos, const T &x)
+	{
+		if (pos.cur == start.cur)
+		{
+			push_front(x);
+			return start;
+		}
+		else if (pos.cur == finish.cur)
+		{
+			push_back(x);
+			iterator tmp = finish;
+			--tmp;
+			return tmp;
+		}
+		else
+		{
+			return insert_aux(pos, x);
+		}
+	}
+
 protected:
+
+	iterator insert_aux(iterator pos, const T &x)
+	{
+		difference_type index = pos - start;
+		value_type x_copy(x);
+		if (size_type(index) < size() / 2)
+		{
+			push_front(front());
+			iterator front1 = start;
+			++front1;
+			iterator front2 = front1;
+			++front2;
+			pos = start + index;
+			iterator pos1 = pos;
+			++pos1;
+
+			std::copy(front2, pos1, front1);
+		}
+		else
+		{
+			push_back(back());
+			iterator back1 = finish;
+			--back1;
+			iterator back2 = back1;
+			--back2;
+			pos = start + index;
+
+			std::copy_backward(pos, back2, back1);
+		}
+
+		*pos = x_copy;
+		return pos;
+	}
 
 	void reallocate_map(size_type node_to_add, bool add_at_front)
 	{
@@ -595,7 +706,7 @@ protected:
 
 	void reserve_map_at_front(size_type nodes = 1)
 	{
-		if (nodes < start.node - map)
+		if (nodes < start.node - _map)
 		{
 			reallocate_map(nodes, true);
 		}
