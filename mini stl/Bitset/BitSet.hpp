@@ -23,16 +23,20 @@ struct _If<true, T1, T2>
 template<std::size_t N>
 class BitSet
 {
+
 	template<std::size_t I>
 	class bitset_reference
 	{
 		typedef bitset_reference<I> self;
+
 	public:
+
 		bitset_reference(BitSet<I> *ptr,std::size_t pos)
 			:_ptr(ptr), _pos(pos)
 		{
 
 		}
+
 		bitset_reference(const self &x)
 			:_ptr(x._ptr), _pos(x._pos)
 		{
@@ -47,8 +51,7 @@ class BitSet
 
 		self operator=(const self &x)
 		{
-			_ptr = x._ptr;
-			_pos = x._pos;
+			_ptr->set_value(x._ptr->get_value());
 			return *this;
 		}
 
@@ -62,13 +65,16 @@ class BitSet
 		BitSet<I> *_ptr;
 		std::size_t _pos;
 	};
+
 	friend class reference;
+
 public:
 
 	typedef BitSet<N> self;
 	typedef typename _If < N <= 32, unsigned, unsigned long long > ::value data_value;
 	typedef std::size_t size_type;
 	typedef std::ptrdiff_t difference_type;
+
 	typedef bitset_reference<N> reference;
 
 	BitSet()
@@ -76,12 +82,26 @@ public:
 		std::memset(_elemts, 0, sizeof(_elemts));
 	}
 
+	BitSet(const self &x)
+	{
+		std::copy(x._elemts, x._elemts + x.block_num + 1, _elemts);
+	}
+
 	reference operator[](size_type index)
 	{
-		return reference(this,index);
+		if (index < N)
+			return reference(this,index);
+		else 
+			return reference(nullptr, 0);
+	}
+
+	void clear()
+	{
+		std::memset(_elemts, 0, sizeof(_elemts));
 	}
 
 protected:
+
 	bool get_value(std::size_t n)
 	{
 		std::size_t pos = n / block_size;
@@ -90,6 +110,7 @@ protected:
 		data_value result = offset & _elemts[pos];
 		return !(result == 0);
 	}
+
 	void set_value(std::size_t n, bool x)
 	{
 		data_value x_copy = (data_value)x;
@@ -102,17 +123,20 @@ protected:
 	}
 
 private:
+
 	enum :size_type
 	{
 		char_size = 8,
 		int_size = char_size * 4,
 		long_long_size = int_size * 2,
 	};
+
 	enum : difference_type
 	{
 		block_size = difference_type(char_size * sizeof(data_value)),
 		block_num = difference_type(N == 0 ? 0 : (N - 1)/block_size),
 	};
+
 	data_value _elemts[block_num + 1];
 };
 
