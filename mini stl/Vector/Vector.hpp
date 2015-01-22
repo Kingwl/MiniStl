@@ -136,7 +136,7 @@ public:
 
 	const_reference front() const
 	{
-		return *begin();
+		return *cbegin();
 	}
 
 	reference back()
@@ -146,7 +146,7 @@ public:
 
 	const_reference back() const
 	{
-		return *(end() - 1);
+		return *(cend() - 1);
 	}
 
 /*-----------------------------------------------------------------------------------*/
@@ -157,7 +157,8 @@ public:
 	}
 	Vector(const Vector<T, Alloc> &v)
 	{
-
+		_fill_init(v.size(), T());
+		std::copy(v._start, v._finish,_start);
 	}
 	Vector(size_type n, const T &x)
 	{
@@ -167,6 +168,14 @@ public:
 	explicit Vector(size_type n)
 	{
 		_fill_init(n, T());
+	}
+
+	template<class RandomAccessIterator>
+	Vector(RandomAccessIterator first, RandomAccessIterator last)
+	{
+		size_type n = std::distance(first, last);
+		_fill_init(n, T());
+		std::copy(first, last, _start);
 	}
 
 	~Vector(){
