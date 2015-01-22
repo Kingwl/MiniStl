@@ -1,7 +1,7 @@
 #ifndef _HEAP_
 #define _HEAP_
 #include "type_traits"
-
+#include "iterator"
 template<class RandomAccessIterator>
 inline void push_heap(RandomAccessIterator first, RandomAccessIterator last)
 {
@@ -34,7 +34,7 @@ template<class RandomAccessIterator>
 inline void pop_heap(RandomAccessIterator first, RandomAccessIterator last)
 {
 	typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
-	if (first == last)  return;
+	if (last - first < 2)  return;
 	pop_heap_aux(first, last, (value_type*)0);
 }
 
@@ -109,7 +109,7 @@ template<class RandomAccessIterator, class Compare>
 inline void pop_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp)
 {
 	typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
-	if (first == last)  return;
+	if (last - first < 2)  return;
 	pop_heap_aux(first, last, (value_type*)0, comp);
 }
 
@@ -151,4 +151,94 @@ inline void adjust_heap(RandomAccessIterator first, Distance holeindex, Distance
 	}
 	_push_heap(first, holeindex, topindex, value, comp);
 }
+
+template<class RandomAccessIterator>
+inline void sort_heap(RandomAccessIterator first, RandomAccessIterator last)
+{
+	while (first < last)
+	{
+		pop_heap(first, last--);
+	}
+}
+
+template<class RandomAccessIterator, class Compare>
+inline void sort_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp)
+{
+	while (first < last)
+	{
+		pop_heap(first, last--, comp);
+	}
+}
+
+template<class RandomAccessIterator>
+inline void make_heap(RandomAccessIterator first, RandomAccessIterator last)
+{
+	typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
+	typedef typename std::iterator_traits<RandomAccessIterator>::difference_type difference_type;
+	if (last - first < 2) return;
+	_make_heap(first, last, (difference_type*)0, (value_type*)0);
+}
+
+template<class RandomAccessIterator, class Distance, class T>
+inline void _make_heap(RandomAccessIterator first, RandomAccessIterator last, Distance*, T*)
+{
+	Distance len = last - first;
+	Distance parent = (len - 2) / 2;
+	while (true)
+	{
+		adjust_heap(first, parent, len, T(*(first + parent)));
+		if (parent == 0) return;
+		--parent;
+	}
+}
+
+template<class RandomAccessIterator, class Compare>
+inline void make_heap(RandomAccessIterator first, RandomAccessIterator last, Compare comp)
+{
+	typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
+	typedef typename std::iterator_traits<RandomAccessIterator>::difference_type difference_type;
+	if (last - first < 2) return;
+	_make_heap(first, last, (difference_type*)0, (value_type*)0, comp);
+}
+
+template<class RandomAccessIterator, class Distance, class T, class Compare>
+inline void _make_heap(RandomAccessIterator first, RandomAccessIterator last, Distance*, T*, Compare comp)
+{
+	Distance len = last - first;
+	Distance parent = (len - 2) / 2;
+	while (true)
+	{
+		adjust_heap(first, parent, len, T(*(first + parent)), comp);
+		if (parent == 0) return;
+		--parent;
+	}
+}
+
+template<class Iterator>
+struct is_random
+{
+	static const bool result = false;
+};
+template<>
+struct is_random<std::random_access_iterator_tag>
+{
+	static const bool result = true;
+};
+
+template<class Container>
+inline void make_heap(Container &c)
+{
+	typedef typename std::iterator_traits<typename Container::iterator>::iterator_category iterator_category;
+	static_assert(is_random<iterator_category>::result, "iterator is not random access iterator");
+	make_heap(std::begin(c), std::end(c));
+}
+
+template<class Container, class Compare>
+inline void make_heap(Container &c, Compare comp)
+{
+	typedef typename std::iterator_traits<typename Container::iterator>::iterator_category iterator_category;
+	static_assert(is_random<iterator_category>::result, "iterator is not random access iterator");
+	make_heap(std::begin(c), std::end(c),comp);
+}
+
 #endif

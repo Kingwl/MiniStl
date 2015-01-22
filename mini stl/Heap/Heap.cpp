@@ -4,10 +4,12 @@
 #include "stdafx.h"
 #include "Heap.hpp"
 #include "iostream"
+#include "vector"
+#include "list"
 template<class T>
 bool big(const T &a, const T &b)
 {
-	return a > b;
+	return a < b;
 }
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -18,18 +20,31 @@ int _tmain(int argc, _TCHAR* argv[])
 	{
 		n[i] = r[i];
 		push_heap(n, n + i + 1, big<int>);
-		std::cout << n[0] << " ";
 
 	}
-	std::cout << std::endl;
 
-	for (int i = 10; i > 0; --i)
+	sort_heap(n, n + 10, big<int>);
+	for (auto p : n)
 	{
-		std::cout << n[0] << " ";
-		pop_heap(n,n+ i,big<int>);
+		std::cout << p << " ";
 	}
-
 	std::cout << std::endl;
+
+	for (int i = 0; i < 10; ++i)
+	{
+		r[i] = rand() % 100;
+	}
+	make_heap(r, r + 10,big<int>);
+	sort_heap(r, r + 10, big<int>);
+	for (auto p : r)
+	{
+		std::cout << p << " ";
+	}
+	std::cout << std::endl;
+	std::vector<int> v;
+	make_heap(v,big<int>);
+
+
 	system("pause");
 	return 0;
 }
