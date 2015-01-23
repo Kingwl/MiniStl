@@ -339,13 +339,13 @@ protected:
 	list_node_ptr create_node(const T &x)
 	{
 		list_node_ptr ptr = get_node();
-		std::_Construct(&ptr->data, x);
+		construct(&ptr->data, x);
 		return ptr;
 	}
 
 	void destroy_node(list_node_ptr p)
 	{
-		std::_Destroy(&p->data);
+		destroy(&p->data);
 		put_node(p);
 	}
 
@@ -374,4 +374,238 @@ protected:
 
 	list_node_ptr node;
 };
+
+
+struct s_list_base
+{
+	s_list_base *next;
+};
+
+template<class T>
+struct s_list_node : public s_list_base
+{
+	T data;
+
+	s_list_node(const T &x = T())
+		:data(x)
+	{
+
+	}
+};
+
+inline s_list_base* insert_node(s_list_base *prev, s_list_base *news)
+{
+	news->next = prev->next;
+	prev->next = news;
+	return news;
+}
+
+inline std::size_t list_size(s_list_base *node)
+{
+	std::size_t result = 0;
+	for (; node != nullptr; node = node->next)
+	{
+		++result;
+	}
+	return result;
+}
+
+struct s_list_iterator_base
+{
+	typedef std::size_t size_type;
+	typedef std::ptrdiff_t difference_type;
+	typedef std::forward_iterator_tag iterator_category;
+
+	s_list_base *node;
+	s_list_iterator_base(s_list_base *x)
+		:node(x)
+	{
+
+	}
+
+	void incr()
+	{
+		node = node->next;
+	}
+
+	bool operator==(const s_list_iterator_base &x) const
+	{
+		return node == x.node;
+	}
+
+	bool operator!=(const s_list_iterator_base &x) const
+	{
+		return node != x.node;
+	}
+
+};
+
+template<class T, class Ref, class Ptr>
+struct s_list_iterator : public s_list_iterator_base
+{
+	typedef s_list_iterator<T, T&, T*> iterator;
+	typedef s_list_iterator<T, const T &, const T *> const_iterator;
+	typedef s_list_iterator<T, Ref, Ptr> self;
+
+	typedef T value_type;
+	typedef Ref reference;
+	typedef Ptr pointer;
+	typedef s_list_node<T> list_node;
+
+	s_list_iterator(list_node *x = nullptr)
+		:s_list_iterator_base(x)
+	{
+
+	}
+
+	s_list_iterator(const s_list_iterator &x)
+		:s_list_iterator_base(x.node)
+	{
+
+	}
+
+	reference operator*() const
+	{
+		return ((list_node*)node)->data;
+	}
+
+	pointer operator->() const
+	{
+		return &(operator*());
+	}
+
+	self& operator++()
+	{
+		incr();
+		return *this;
+	}
+
+	self& operator++(int)
+	{
+		self tmp = *this;
+		incr();
+		return tmp;
+	}
+
+};
+
+template<class T, class Alloc = alloc>
+class sList
+{
+
+public:
+
+	typedef T value_type;
+	typedef T& reference;
+	typedef T* pointer;
+	typedef const T& const_reference;
+	typedef const T* const_pointer;
+	typedef std::size_t size_type;
+	typedef std::ptrdiff_t difference_type;
+
+	typedef s_list_iterator<T, reference, pointer> iterator;
+	typedef s_list_iterator<T, const_reference, const_pointer> const_iterator;
+
+private:
+	typedef s_list_node<T> slist_node;
+	typedef s_list_base list_node_base;
+	typedef s_list_iterator_base iterator_base;
+	typedef simple_alloc<slist_node, Alloc> node_alloc;
+
+	slist_node _head;
+
+	static slist_node* create_node(const T &x)
+	{
+		slist_node *node = node_alloc::allocate();
+		construct(node, x);
+		node->next = nullptr;
+		return node;
+	}
+
+	static void destory_node(slist_node *node)
+	{
+		destroy(node);
+		node_alloc::deallocate(node);
+	}
+
+public:
+
+	sList()
+	{
+		_head.next = nullptr;
+	}
+
+	~sList()
+	{
+		clear();
+	}
+
+	iterator begin()
+	{
+		return iterator((slist_node*)_head.next);
+	}
+
+	iterator end()
+	{
+		return iterator(nullptr);
+	}
+
+	size_type size() const
+	{
+		return list_size(_head.next);
+	}
+
+	bool empty() const
+	{
+		return _head.next == nullptr;
+	}
+
+	void swap(sList<T,Alloc> &l)
+	{
+		std::swap(_head.next, l._head.next);
+	}
+
+	reference front()
+	{
+		return ((slist_node*)_head.next)->data;
+	}
+
+	void push_front(const T &x)
+	{
+		insert_node(&_head, create_node(x));
+	}
+
+	void pop_front()
+	{
+		slist_node* node = (slist_node*)_head.next;
+		_head.next = node->next;
+		destory_node(node);
+	}
+
+	void insert(iterator pos, const T &x)
+	{
+		insert_node(pos.node, create_node(x));
+	}
+
+	void erase_after(iterator pos)
+	{
+		slist_node *ptr = pos.node->next;
+		pos.node->next = ptr->next;
+		destory_node(ptr);
+	}
+
+	void clear()
+	{
+		slist_node *ptr = (slist_node*)_head.next;;
+		while (ptr != nullptr)
+		{
+			slist_node *tmp = ptr;
+			ptr = (slist_node*)ptr->next;
+			destory_node(tmp);
+		}
+		_head.next = nullptr;
+	}
+
+};
+
 #endif

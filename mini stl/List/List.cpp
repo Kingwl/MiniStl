@@ -13,6 +13,21 @@ int _tmain(int argc, _TCHAR* argv[])
 	std::cout << *l.begin();
 	l.erase(l.begin());
 	std::cout << l.empty();
+
+	sList<int> sl;
+	sl.push_front(1);
+	sl.push_front(2);
+	sl.push_front(3);
+	std::cout << sl.size();
+	sl.pop_front();
+	std::cout << sl.size();
+	for (auto p : sl)
+	{
+		std::cout << p;
+	}
+	sl.clear();
+	std::cout << sl.size();
+
 	system("pause");
 	return 0;
 }
