@@ -1,6 +1,12 @@
 #define DEBUG
 #ifdef DEBUG
 #include "iostream"
+
+template<class T>
+inline T max(const T &a, const T &b)
+{
+    return a > b ? a : b;
+}
 #endif
 
 #ifndef _TREE_
@@ -360,6 +366,217 @@ public:
     }
 
 protected:
+    NodePtr _root;
+    Compare _comp;
+
+};
+
+template<class T>
+struct avl_node
+{
+
+    avl_node *left;
+    avl_node *right;
+    avl_node *parent;
+    int deep;
+    T data;
+
+    avl_node(const T &x)
+        :data(x), deep(1), left(nullptr), right(nullptr), parent(nullptr)
+    {
+
+    }
+};
+
+
+template<class T, class Compare = std::less<>, class Alloc = alloc>
+class avl_tree
+{
+
+protected:
+    typedef avl_tree<T, Compare, Alloc> self;
+    typedef avl_node<T> Node;
+    typedef Node* NodePtr;
+    typedef simple_alloc<Node, Alloc> node_allocator;
+
+public:
+    typedef T type_value;
+    typedef T* pointer;
+    typedef const T* const_pointer;
+    typedef T& reference;
+    typedef const T& const_reference;
+
+protected:
+
+    NodePtr createNode(const T &x)
+    {
+        NodePtr ptr = node_allocator::allocate();
+        construct(ptr, x);
+        return ptr;
+    }
+
+    void destroyNode(T *ptr)
+    {
+        destroy(ptr);
+        node_allocator::deallocate(ptr);
+    }
+
+    int height(const NodePtr ptr) const
+    {
+        return ptr == nullptr ? 0 : ptr->deep;
+    }
+
+    int balance(const NodePtr ptr) const
+    {
+        return height(ptr->left) - height(ptr->right);
+    }
+
+    void reheight(NodePtr ptr)
+    {
+        ptr->deep = max(height(ptr->left), height(ptr->right)) + 1;
+    }
+
+    NodePtr L_Rotate(NodePtr &ptr)
+    {
+        NodePtr RP = ptr->right;
+        ptr->right = RP->left;
+        RP->left = ptr;
+        reheight(ptr);
+        reheight(RP);
+        ptr = RP;
+        return ptr;
+    }
+
+    NodePtr R_Rotate(NodePtr &ptr)
+    {
+        NodePtr LP = ptr->left;
+        ptr->left = LP->right;
+        LP->right = ptr;
+        reheight(ptr);
+        reheight(LP);
+        ptr = LP;
+        return ptr;
+    }
+
+    NodePtr LL_Rotate(NodePtr &ptr)
+    {
+      //  /*                   */                 /*                      */
+      //  /*         A         */                 /*          B           */
+      //  /*        / \        */                 /*         / \          */
+      //  /*       B   C       */                 /*        D   A         */
+      //  /*      / \          */        ->       /*       /   / \        */
+      //  /*     D   E         */                 /*      F   E   C       */
+      //  /*    /              */                 /*                      */
+      //  /*   F               */                 /*                      */
+      //  /*                   */                 /*                      */
+        return R_Rotate(ptr);
+    }
+
+    NodePtr LR_Rotate(NodePtr &ptr)
+    {
+        //  /*                   */           /*                      */         /*                    */
+        //  /*         A         */           /*          A           */         /*          E         */
+        //  /*        / \        */           /*         / \          */         /*         / \        */
+        //  /*       B   C       */           /*        E   C         */         /*        B   A       */
+        //  /*      / \          */     ->    /*       /              */    ->   /*       / \   \      */
+        //  /*     D   E         */           /*      B               */         /*      D   F   C     */
+        //  /*        /          */           /*     / \              */         /*                    */
+        //  /*       F           */           /*    D   F             */         /*                    */
+        //  /*                   */           /*                      */         /*                    */
+
+        L_Rotate(ptr->left);
+        return R_Rotate(ptr);
+    }
+
+    NodePtr RL_Rotate(NodePtr &ptr)
+    {
+        //  /*                   */           /*                      */         /*                    */
+        //  /*         A         */           /*          A           */         /*          D         */
+        //  /*        / \        */           /*         / \          */         /*         / \        */
+        //  /*       B   C       */           /*        B   D         */         /*        A   C       */
+        //  /*          / \      */     ->    /*           / \        */    ->   /*       / \   \      */
+        //  /*         D   E     */           /*          F   C       */         /*      B   F   E     */
+        //  /*        /          */           /*               \      */         /*                    */
+        //  /*       F           */           /*                E     */         /*                    */
+        //  /*                   */           /*                      */         /*                    */
+
+        R_Rotate(ptr->right);
+        return L_Rotate(ptr);
+    }
+
+    NodePtr RR_Rotate(NodePtr &ptr)
+    {
+        //  /*                   */                 /*                      */
+        //  /*         A         */                 /*          C           */
+        //  /*        / \        */                 /*         / \          */
+        //  /*       B   C       */                 /*        A   E         */
+        //  /*          / \      */        ->       /*       / \   \        */
+        //  /*         D   E     */                 /*      F   D   F       */
+        //  /*              \    */                 /*                      */
+        //  /*               F   */                 /*                      */
+        //  /*                   */                 /*                      */
+        return L_Rotate(ptr);
+    }
+
+    NodePtr rebalance(NodePtr &ptr)
+    {
+        if (ptr != nullptr)
+        {
+            reheight(ptr);
+            if (balance(ptr) == 2)//left
+            {
+                if (balance(ptr->left) == 1)
+                {
+                    LL_Rotate(ptr);
+                }
+                else
+                {
+                    LR_Rotate(ptr);
+                }
+
+            }
+            if (balance(ptr) == -2)//right
+            {
+                if (balance(ptr->right) == 1)
+                {
+                    RL_Rotate(ptr);
+                }
+                else
+                {
+                    RR_Rotate(ptr);
+                }
+            }
+        }
+        return ptr;
+    }
+
+public:
+
+    avl_tree()
+        :_root(nullptr)
+    {
+
+    }
+
+    avl_tree(Compare comp)
+        :_root(nullptr), _comp(comp)
+    {
+
+    }
+
+    avl_tree(const self &x)
+        :_root(x._root), _comp(x._comp)
+    {
+
+    }
+
+    ~avl_tree()
+    {
+
+    }
+
+protected:
+
     NodePtr _root;
     Compare _comp;
 
