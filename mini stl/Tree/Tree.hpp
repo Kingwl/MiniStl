@@ -13,12 +13,133 @@ struct bst_node
 {
     bst_node *left;
     bst_node *right;
+    bst_node *parent;
     T data;
 
-    bst_node(const T & _x, bst_node *_left = nullptr, bst_node *_right = nullptr)
-        :data(_x), left(_left), right(_right)
+    bst_node(const T & _x)
+        :data(_x), left(nullptr), right(nullptr), parent(nullptr)
     {
 
+    }
+};
+
+template<class T>
+struct bst_iterator
+{
+    typedef bst_iterator<T> self;
+    typedef bst_node<T> Node;
+    typedef Node* NodePtr;
+    typedef std::bidirectional_iterator_tag iterator_category;
+    typedef std::size_t size_type;
+    typedef std::ptrdiff_t difference_type;
+
+    NodePtr node;
+
+    bst_iterator(NodePtr x = nullptr)
+        :node(x)
+    {
+
+    }
+
+    bst_iterator(const self &x)
+        :node(x.node)
+    {
+        
+    }
+
+    void inor()
+    {
+        if (node != nullptr)
+        {
+            if (node->right != nullptr)
+            {
+                node = node->right;
+                while (node->left != nullptr)
+                {
+                    node = node->left;
+                }
+            }
+            else
+            {
+                NodePtr p_ptr = node->parent;
+                while (p_ptr != nullptr && node == p_ptr->right)
+                {
+                    node = p_ptr;
+                    p_ptr = p_ptr->parent;
+                }
+                node = p_ptr;
+            }
+        }
+    }
+
+    void deor()
+    {
+        if (node != nullptr)
+        {
+            if (node->left != nullptr)
+            {
+                while (node->right != nullptr)
+                {
+                    node = node->right;
+                }
+            }
+            else
+            {
+                NodePtr p_ptr = node->parent;
+                while (p_ptr != nullptr && node = p_ptr->left)
+                {
+                    node = p_ptr;
+                    p_ptr = p_ptr->parent;
+                }
+                node = p_ptr;
+            }
+        }
+    }
+
+    bool operator== (const self &x) const
+    {
+        return node == x.node;
+    }
+
+    bool operator!=(const self &x) const
+    {
+        return node != x.node;
+    }
+
+    self& operator++()
+    {
+        inor();
+        return *this;
+    }
+
+    self operator++(int)
+    {
+        self tmp = *this;
+        inor();
+        return tmp;
+    }
+
+    self& operator--()
+    {
+        deor();
+        return *this;
+    }
+
+    self operator--(int)
+    {
+        self tmp = *this;
+        deor();
+        return tmp;
+    }
+
+    T operator*() const
+    {
+        return node->data;
+    }
+
+    T* operator->() const
+    {
+        return &(operator*());
     }
 };
 
@@ -40,6 +161,7 @@ public:
     typedef const T& const_reference;
     typedef std::size_t size_type;
     typedef std::ptrdiff_t difference_type;
+    typedef bst_iterator<T> iterator;
 
 protected:
 
@@ -56,19 +178,20 @@ protected:
         node_allocator::deallocate(ptr);
     }
 
-    void insert_aux(NodePtr &ptr, const T &x)
+    void insert_aux(NodePtr &ptr, NodePtr par, const T &x)
     {
         if (ptr == nullptr)
         {
             ptr = createNode(x);
+            ptr->parent = par;
         }
         else if (_comp(ptr->data, x))
         {
-            insert_aux(ptr->right,x);
+            insert_aux(ptr->right, ptr,x);
         }
         else
         {
-            insert_aux(ptr->left, x);
+            insert_aux(ptr->left, ptr, x);
         }
     }
 
@@ -94,7 +217,7 @@ protected:
 
     NodePtr find_min(NodePtr ptr) const
     {
-        while (ptr != nullptr)
+        while (ptr->left != nullptr)
         {
             ptr = ptr->left;
         }
@@ -103,7 +226,7 @@ protected:
 
     NodePtr find_max(NodePtr ptr) const
     {
-        while (ptr != nullptr)
+        while (ptr->right != nullptr)
         {
             ptr = ptr->right;
         }
@@ -202,7 +325,7 @@ public:
 
     void insert(const T &x)
     {
-        insert_aux(_root, x);
+        insert_aux(_root, nullptr, x);
     }
 
     bool find(const T &x) const
@@ -224,6 +347,16 @@ public:
     {
         clear_aux(_root);
         _root = nullptr;
+    }
+
+    iterator begin()
+    {
+        return iterator(find_min(_root));
+    }
+
+    iterator end()
+    {
+        return iterator(nullptr);
     }
 
 protected:
